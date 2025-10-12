@@ -1,0 +1,841 @@
+{
+  "name": "AI Citizen Complaint Management (Updated v2)",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "8fb5aa18-71cb-4bd9-93eb-886d2a56f2b3",
+              "leftValue": "={{ $json['Validation Status(Auto Generated)'] }}",
+              "rightValue": "Passed",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b58f5c17-876b-43c2-b724-8a620891c937",
+      "name": "If Validation Passed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1088,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Data').item.json.Email }}",
+        "subject": "=Complaint Received - ID  {{ $json['Complaint ID(Auto Generated)'] }}",
+        "message": "=Hello {{ $('Validate Data').item.json['Citizen Name'] }}, \nThank you for submitting your complaint regarding {{ $json['Category(Auto Generated)'] }}. Your complaint ID is {{ $json['Complaint ID(Auto Generated)'] }}. We have received your request and it is currently {{ $json.Status }}. Our team will review and take appropriate action. You will be updated once your complaint is processed.",
+        "options": {}
+      },
+      "id": "200f24b3-225d-4c87-977c-bdb45cd06df2",
+      "name": "Citizen Acknowledgment",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        288,
+        0
+      ],
+      "webhookId": "a2248ab6-72e2-4f64-828f-2927418530d6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dKvCFJS2XpJVOaaP",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "0 */5 * * * *"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc",
+          "mode": "list",
+          "cachedResultName": "Citizen Report_1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1821710422,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit#gid=1821710422"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1584,
+        192
+      ],
+      "id": "e9f8b523-f9ce-4d07-bc8f-fa1052ddeaf6",
+      "name": "Google Sheets Trigger1",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "lC7EbGiQ90VdARzE",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Function to generate unique Complaint ID\nfunction generateComplaintID() {\n    return 'CID-' + Date.now(); // timestamp-based unique ID\n}\n\n// Email validation\nfunction validateEmail(email) {\n    const regex = /^[\\w-]+(\\.[\\w-]+)*@([\\w-]+\\.)+[a-zA-Z]{2,7}$/;\n    return regex.test(email);\n}\n\n// Phone validation\nfunction validatePhone(phone) {\n    const regex = /^[0-9+\\-\\s()]{10,15}$/;\n    return regex.test(phone);\n}\n\nreturn items.map(item => {\n    const data = item.json;\n\n    // Always generate Complaint ID\n    data['Complaint ID(Auto Generated)'] = generateComplaintID();\n\n    let errorMessages = [];\n    let missingFields = [];\n\n    // Validation checks\n    if (!data['Citizen Name'] || data['Citizen Name'].trim() === '') {\n        errorMessages.push('Missing Citizen Name');\n        missingFields.push('Citizen Name');\n    }\n    if (!data['Email'] || !validateEmail(data['Email'])) {\n        errorMessages.push('Invalid or Missing Email');\n        missingFields.push('Email');\n    }\n    if (!data['Phone'] || !validatePhone(data['Phone'])) {\n        errorMessages.push('Invalid or Missing Phone');\n        missingFields.push('Phone');\n    }\n    if (!data['Complaint Description'] || data['Complaint Description'].trim() === '') {\n        errorMessages.push('Missing Complaint Description');\n        missingFields.push('Complaint Description');\n    }\n    if (!data['Full Location(Vi, M, Dis, State, PIN)'] || data['Full Location(Vi, M, Dis, State, PIN)'].trim() === '') {\n        errorMessages.push('Missing Full Location');\n        missingFields.push('Full Location');\n    }\n\n    // Set validation status\n    const validationStatus = errorMessages.length > 0 ? 'Failed' : 'Passed';\n\n    // Set notes\n    const notes = validationStatus === 'Passed' \n        ? 'Complaint data validated successfully'\n        : 'Please correct the following fields: ' + missingFields.join(', ');\n\n    return {\n        json: {\n            ...data,\n            'Validation Status(Auto Generated)': validationStatus,\n            'Error Message(Auto Generated)': errorMessages.join('; '),\n            'Notes(Auto Generated)': notes,\n            'Status': 'Pending',\n            'Category(Auto Generated)': '',\n            'Priority(Auto Generated)': '',\n            'Assigned Department(Auto Generated)': '',\n            'Processing Date(Auto Generated)': ''\n        }\n    };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        192
+      ],
+      "id": "06d32e26-8e77-4c5c-ac25-994077493e68",
+      "name": "Validate Data"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Validate Data').item.json.Email }}",
+        "subject": "Complaint Submission Failed",
+        "message": "=❌ Validation Failed for Complaint ID: {{ $json['Complaint ID(Auto Generated)'] }}\nCitizen Name: {{ $('Validate Data').item.json['Citizen Name'] }}                                                                                                                                                                                           \nEmail: {{ $('Validate Data').item.json.Email }}\n                                                                                                                                                                                           \nErrors: {{ $json[\"Error Message(Auto Generated)\"] }}                                                                                                                            \nWarnings: {{ $json[\"Notes(Auto Generated)\"] || \"None\" }}                                                                                                                            \nProcessing Status: {{ $json[\"Processing Status\"] || \"Failed\" }}                                                                                                                             Retry Count: {{ $json[\"Retry Count\"] || 0 }}\n\n⚠ Action Required: Please review the complaint data and correct the errors before reprocessing.",
+        "options": {}
+      },
+      "id": "85be753c-96db-4203-a961-4105cd7d6d79",
+      "name": "Handle Validation Fail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        272,
+        192
+      ],
+      "webhookId": "9aa4c61f-d7d5-414c-987c-231fc90fa95d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dKvCFJS2XpJVOaaP",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -768,
+        320
+      ],
+      "id": "e3bce2ea-d436-40ff-b350-00903b306a30",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $vars.OpenAI_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-oss-20b\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an AI assistant that classifies municipal complaints into structured JSON with {category, priority, urgency_keywords}. Return only JSON.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Complaint: {{ $json['Complaint Description'] }}\"\n    }\n  ]\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -768,
+        96
+      ],
+      "id": "725f4f25-531b-491a-bcf3-03e51a02b97a",
+      "name": "Open AI Categorizer"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n    // Get raw AI JSON string\n    let aiResponseStr = item.json.choices?.[0]?.message?.content || '{}';\n    let aiData = {};\n    let errorMessage = '';\n\n    try {\n        aiData = JSON.parse(aiResponseStr);\n    } catch (e) {\n        errorMessage = 'Failed to parse AI response: ' + e.message;\n        aiData = {};\n    }\n\n    // Extract fields\n    const category = (aiData.category || '').trim();\n    const priority = (aiData.priority || '').trim();\n    const urgencyKeywords = Array.isArray(aiData.urgency_keywords)\n        ? aiData.urgency_keywords.join(', ')\n        : '';\n    let assignedDepartment = (aiData.assigned_department || '').trim();\n\n    // 🧠 Auto-assign department if AI didn’t specify one\n    if (!assignedDepartment) {\n        switch (category.toLowerCase()) {\n            case 'road maintenance':\n                assignedDepartment = 'Public Works';\n                break;\n            case 'power':\n            case 'electricity':\n                assignedDepartment = 'Electricity Department';\n                break;\n            case 'water supply':\n            case 'water leakage':\n                assignedDepartment = 'Water Department';\n                break;\n            case 'sanitation':\n            case 'garbage':\n            case 'waste management':\n                assignedDepartment = 'Sanitation Department';\n                break;\n            case 'health':\n            case 'medical emergency':\n            case 'health facility issues':\n                assignedDepartment = 'Health Department';\n                break;\n            case 'education':\n                assignedDepartment = 'Education Department';\n                break;\n            case 'traffic':\n            case 'road safety':\n                assignedDepartment = 'Traffic Police Department';\n                break;\n            case 'environment':\n            case 'pollution':\n                assignedDepartment = 'Environment Department';\n                break;\n            case 'fire':\n            case 'emergency':\n                assignedDepartment = 'Fire Department';\n                break;\n            case 'housing':\n            case 'building':\n                assignedDepartment = 'Housing Department';\n                break;\n            default:\n                assignedDepartment = 'Under observation';\n        }\n    }\n\n    // Status and date generation\n    const status = assignedDepartment ? 'Assigned' : 'Pending';\n    const processingDate = new Date().toISOString();\n\n    // Check if something is missing\n    if (!category && !priority && !assignedDepartment && !urgencyKeywords && !errorMessage) {\n        errorMessage = 'AI response missing expected fields';\n    }\n\n    console.log('Processed item:', { category, priority, assignedDepartment, errorMessage });\n\n    // Return structured JSON\n    return {\n        json: {\n            'Category(Auto Generated)': category,\n            'Priority(Auto Generated)': priority,\n            'Assigned Department(Auto Generated)': assignedDepartment,\n            'Urgency Keywords(Auto Generated)': urgencyKeywords,\n            'Processing Date(Auto Generated)': processingDate,\n            'Status': status,\n            'Error Message(Auto Generated)': errorMessage\n        }\n    };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -560,
+        96
+      ],
+      "id": "73ec1a19-2b10-48ef-a03f-a42ff6860d38",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc",
+          "mode": "list",
+          "cachedResultName": "Citizen Report_1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1821710422,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit#gid=1821710422"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Category(Auto Generated)": "={{ $json['Category(Auto Generated)'] }}",
+            "Priority(Auto Generated)": "={{ $json['Priority(Auto Generated)'] }}",
+            "Complaint ID(Auto Generated)": "={{ $('Validate Data').item.json['Complaint ID(Auto Generated)'] }}",
+            "Assigned Department(Auto Generated)": "={{ $json['Assigned Department(Auto Generated)'] }}",
+            "Urgency Keywords(Auto Generated)": "={{ $json['Urgency Keywords(Auto Generated)'] }}",
+            "Processing Date(Auto Generated)": "={{ $json['Processing Date(Auto Generated)'] }}",
+            "Validation Status(Auto Generated)": "={{ $('Validate Data').item.json['Validation Status(Auto Generated)'] }}",
+            "Error Message(Auto Generated)": "=",
+            "Notes(Auto Generated)": "={{ $('Validate Data').item.json['Notes(Auto Generated)'] }}",
+            "Timestamp": "={{ $('Validate Data').item.json.Timestamp }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [
+            "Timestamp"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Citizen Name",
+              "displayName": "Citizen Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Full Location(Vi, M, Dis, State, PIN)",
+              "displayName": "Full Location(Vi, M, Dis, State, PIN)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Complaint Description",
+              "displayName": "Complaint Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Complaint ID(Auto Generated)",
+              "displayName": "Complaint ID(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category(Auto Generated)",
+              "displayName": "Category(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority(Auto Generated)",
+              "displayName": "Priority(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Assigned Department(Auto Generated)",
+              "displayName": "Assigned Department(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Urgency Keywords(Auto Generated)",
+              "displayName": "Urgency Keywords(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Processing Date(Auto Generated)",
+              "displayName": "Processing Date(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Validation Status(Auto Generated)",
+              "displayName": "Validation Status(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Error Message(Auto Generated)",
+              "displayName": "Error Message(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes(Auto Generated)",
+              "displayName": "Notes(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "7fd5436f-f115-4bb1-a93f-60059848a781",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MqLXfXfp0AJL6lI6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2acbe76f-4a3a-4614-9b18-3c972c954e83",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Assigned",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -304,
+        96
+      ],
+      "id": "053c9ca7-ec49-4be5-98e6-86523e3cca2b",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc",
+          "mode": "list",
+          "cachedResultName": "Citizen Report_1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1821710422,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1MHzHiUQYe7_sm_q4PY5y9dJG34k6QpUp_Tl0ksSxwCc/edit#gid=1821710422"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Category(Auto Generated)": "=",
+            "Priority(Auto Generated)": "=",
+            "Complaint ID(Auto Generated)": "={{ $('Validate Data').item.json['Complaint ID(Auto Generated)'] }}",
+            "Assigned Department(Auto Generated)": "=",
+            "Urgency Keywords(Auto Generated)": "=",
+            "Processing Date(Auto Generated)": "=",
+            "Validation Status(Auto Generated)": "={{ $json['Validation Status(Auto Generated)'] }}",
+            "Error Message(Auto Generated)": "={{ $json['Error Message(Auto Generated)'] }}",
+            "Notes(Auto Generated)": "={{ $json['Notes(Auto Generated)'] }}",
+            "Timestamp": "={{ $('Validate Data').item.json.Timestamp }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": [
+            "Timestamp"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Citizen Name",
+              "displayName": "Citizen Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Full Location(Vi, M, Dis, State, PIN)",
+              "displayName": "Full Location(Vi, M, Dis, State, PIN)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Complaint Description",
+              "displayName": "Complaint Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Complaint ID(Auto Generated)",
+              "displayName": "Complaint ID(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Category(Auto Generated)",
+              "displayName": "Category(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Priority(Auto Generated)",
+              "displayName": "Priority(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Assigned Department(Auto Generated)",
+              "displayName": "Assigned Department(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Urgency Keywords(Auto Generated)",
+              "displayName": "Urgency Keywords(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Processing Date(Auto Generated)",
+              "displayName": "Processing Date(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Validation Status(Auto Generated)",
+              "displayName": "Validation Status(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Error Message(Auto Generated)",
+              "displayName": "Error Message(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes(Auto Generated)",
+              "displayName": "Notes(Auto Generated)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        192
+      ],
+      "id": "522ee005-e0d9-483c-82fd-769c8806e663",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "MqLXfXfp0AJL6lI6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        496,
+        0
+      ],
+      "id": "a455c4e0-8047-40dd-a609-bfaa31756cc8",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        480,
+        192
+      ],
+      "id": "a7a44642-7f30-417d-b2e7-f57df04afee9",
+      "name": "No Operation, do nothing1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "If Validation Passed": {
+      "main": [
+        [
+          {
+            "node": "Open AI Categorizer",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "If Validation Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open AI Categorizer": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Handle Validation Fail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Citizen Acknowledgment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Citizen Acknowledgment": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Validation Fail": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "vKmvPmJUn52ERTpK"
+  },
+  "versionId": "eff22d23-c676-4b10-b705-24c05977f070",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "12f9c9ebed7bf91d867d5f5f1f5b24783a2b7f275c301ee35ae89f96b668d79f"
+  },
+  "id": "vKmvPmJUn52ERTpK",
+  "tags": []
+}

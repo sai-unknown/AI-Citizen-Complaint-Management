@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citizen Complaint Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <header>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="Government Emblem">
+        <h1>GOVERNMENT OF INDIA</h1>
+        <h1>Citizen Complaint Portal</h1>
+    </header>
+
+    <nav>
+        <a href="#road">Report Complaint</a>
+    </nav>
+
+    <div class="instructions">
+        Welcome to the official Citizen Complaint Portal. Select the appropriate section below and submit your
+        complaint. All mandatory fields must be completed.
+    </div>
+
+    <main>
+        <!-- Road Maintenance -->
+        <div class="section" id="road">
+            <h2>Road Maintenance Complaint</h2>
+            <div class="responsive-iframe">
+                <iframe
+                    src="https://docs.google.com/forms/d/e/1FAIpQLSeJMzJGpsx7yuqcaSZhv8cOkX5ULCHgoekXqJptddir8t9ONA/viewform?embedded=true"
+                    width="640" height="1087" frameborder="0" marginheight="0" marginwidth="0">Loading…</iframe>
+            </div>
+        </div>
+
+        <footer>
+            © 2025 Government of Your State |
+            <a href="#">Privacy Policy</a> |
+            <a href="#">Terms of Use</a> |
+            <a href="#">Contact Us</a>
+        </footer>
+
+        <button id="backToTop" onclick="scrollToTop()">↑ Top</button>
+
+        <script>
+            window.onscroll = function () { toggleBackToTop() };
+            function toggleBackToTop() {
+                const button = document.getElementById("backToTop");
+                if (document.body.scrollTop > 200 || document.documentElement.scrollTop > 200) {
+                    button.style.display = "block";
+                } else {
+                    button.style.display = "none";
+                }
+            }
+            function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        </script>
+
+</body>
+
+</html>
